@@ -1,0 +1,459 @@
+import React, { useState, useEffect } from 'react'
+import { tableData } from '../constants/table-constants.js';
+import db from '../firebase';
+import EditIcon from '@material-ui/icons/Edit';
+import DeleteIcon from '@material-ui/icons/Delete';
+import { useStyles } from './employeeList.css';
+import Table from '@material-ui/core/Table';
+import TableBody from '@material-ui/core/TableBody';
+import TableCell from '@material-ui/core/TableCell';
+import TableContainer from '@material-ui/core/TableContainer';
+import TableHead from '@material-ui/core/TableHead';
+import TableRow from '@material-ui/core/TableRow';
+import Paper from '@material-ui/core/Paper';
+import { useHistory } from 'react-router-dom';
+import ChevronRightIcon from '@material-ui/icons/ChevronRight';
+import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
+import { IconButton } from '@material-ui/core';
+import ArrowUpwardIcon from '@material-ui/icons/ArrowUpward';
+import ArrowDownwardIcon from '@material-ui/icons/ArrowDownward';
+import { TextField, Grid } from '@material-ui/core';
+import SearchIcon from '@material-ui/icons/Search';
+import Input from '@material-ui/core/Input';
+import InputAdornment from '@material-ui/core/InputAdornment';
+
+function EmployeeList() {
+
+    const classes = useStyles();
+    const history = useHistory();
+
+    const [rowData, setRowData] = useState([]);
+    const [firstVisible, setFirstVisible] = useState({});
+    const [lastVisible, setLastVisible] = useState({});
+    const [firstRowId, setFirstRowId] = useState('');
+    const [lastRowId, setLastRowId] = useState('');
+    const [sortValue, setSortValue] = useState('emp_id');
+    const [sortType, setSortType] = useState('asc');
+    const [ count, setCount] = useState(0);
+
+    const [searchValue, setSearchValue] = useState({
+        emp_id: '',
+        emp_name: '',
+        emp_designation: '',
+        contact: '',
+        email: ''
+
+    });
+    const [searchField, setSearchField] = useState('');
+    const rowLimit = 2;
+
+
+    const getRowData = () => {
+        const rows = [];
+
+        var query =  db.collection("employees");
+        if(searchField && searchValue){
+            query = query.where(searchField, '==', `${searchValue[searchField]}`)
+        }
+        query = query.orderBy(sortValue, sortType).limit(rowLimit)
+
+        query.get()
+        .then(querySnapshot => {
+            querySnapshot.docs.map((item, index) => {
+                item.data() && rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+            })
+
+            setFirstVisible({});
+            // setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+            setLastVisible(lastRowId !== querySnapshot.docs[querySnapshot.docs.length - 1].id ? querySnapshot.docs[querySnapshot.docs.length - 1] : {});
+            setRowData(rows);
+        })
+        .catch(() => setRowData([]))
+    }
+
+    useEffect(() => {
+
+        var firstQuery =  db.collection("employees");
+        if(searchField && searchValue){
+            firstQuery = firstQuery.where(searchField, '==', `${searchValue[searchField]}`)
+        }
+        firstQuery = firstQuery.orderBy(sortValue, sortType).limit(1)
+
+        firstQuery.get().then(querySnapshot => {
+            querySnapshot.docs[0] && setFirstRowId(querySnapshot.docs[0].id)
+        });
+
+        // db.collection('employees').where(searchField, '==', `${searchValue[searchField]}`).orderBy(sortValue, sortType).limit(1).get().then(querySnapshot => {
+        //     // console.log("first record-------->", querySnapshot.docs[0].data().emp_name);
+        //     querySnapshot.docs[0] && setFirstRowId(querySnapshot.docs[0].id)
+        // });
+        var lastQuery =  db.collection("employees");
+        if(searchField && searchValue){
+            lastQuery = lastQuery.where(searchField, '==', `${searchValue[searchField]}`)
+        }
+        lastQuery = lastQuery.orderBy(sortValue, sortType).limitToLast(1)
+
+        lastQuery.get().then(querySnapshot => {
+                console.log("last record-------->", querySnapshot.docs[0].data().emp_name);
+                console.log("last record-------->", querySnapshot.docs[0].id);
+                querySnapshot.docs[0] && setLastRowId(querySnapshot.docs[0].id)
+                setCount(5);
+
+
+        });
+        // db.collection('employees').where(searchField, '==', `${searchValue[searchField]}`).orderBy(sortValue, sortType).limitToLast(1).get().then(querySnapshot => {
+        //     // console.log("last record-------->", querySnapshot.docs[0].data().emp_name);
+        //     querySnapshot.docs[0] && setLastRowId(querySnapshot.docs[0].id)
+        // });
+    }, [rowData])
+
+
+    useEffect(() => {
+        getRowData();
+        console.log("Inside useEffect called firsttime", sortValue);
+    }, [])
+
+
+    useEffect(() => {
+        getRowData();
+    }, [sortValue])
+
+
+    const editHandler = (row) => {
+        console.log(row)
+        history.push({ pathname: '/register-employee', state: row });
+    }
+
+
+    const deleteHandler = (row) => {
+        db.collection('employees').doc(`${row.id}`).delete().then((querySnapshot) => {
+            getRowData();
+            console.log("Data Deleted Successfully!!!!!");
+        })
+    }
+
+    const previousDocumentsHandler = () => {
+        const rows = [];
+         
+
+        // db.collection('employees').where(searchField, '==', `${searchValue[searchField]}`).orderBy(sortValue, sortType).endBefore(firstVisible).limitToLast(rowLimit).get().then((querySnapshot) => {
+        //     querySnapshot.docs.map((item, index) => {
+        //         rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+        //     })
+        //     setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        //     setFirstVisible(firstRowId != querySnapshot.docs[0].id ? querySnapshot.docs[0] : {});
+        //     setRowData(rows);
+        // })
+
+        var query =  db.collection("employees");
+        if(searchField && searchValue){
+            query = query.where(searchField, '==', `${searchValue[searchField]}`)
+        }
+        query = query.orderBy(sortValue, sortType).endBefore(firstVisible).limitToLast(rowLimit)
+
+        query.get().then((querySnapshot) => {
+            querySnapshot.docs.map((item, index) => {
+                rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+            })
+            setRowData(rows);
+            // setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+            setFirstVisible(firstRowId != querySnapshot.docs[0].id ? querySnapshot.docs[0] : {});
+            setLastVisible(lastRowId != querySnapshot.docs[querySnapshot.docs.length - 1].id ? querySnapshot.docs[querySnapshot.docs.length - 1] : {});
+
+        })
+
+    }
+
+    const nextDocumentsHandler = () => {
+        const rows = [];
+
+        // db.collection('employees').where(searchField, '==', `${searchValue[searchField]}`).orderBy(sortValue, sortType).startAfter(lastVisible).limit(rowLimit).get().then((querySnapshot) => {
+        //     querySnapshot.docs.map((item, index) => {
+        //         rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+        //     })
+        //     setLastVisible(lastRowId != querySnapshot.docs[querySnapshot.docs.length - 1].id ? querySnapshot.docs[querySnapshot.docs.length - 1] : {});
+        //     setFirstVisible(querySnapshot.docs[0]);
+        //     setRowData(rows);
+        // })
+
+
+        var query =  db.collection("employees");
+        if(searchField && searchValue){
+            query = query.where(searchField, '==', `${searchValue[searchField]}`)
+        }
+        query = query.orderBy(sortValue, sortType).startAfter(lastVisible).limit(rowLimit)
+
+        query.get().then((querySnapshot) => {
+            querySnapshot.docs.map((item, index) => {
+                rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+            })
+            setRowData(rows);
+            setLastVisible(lastRowId != querySnapshot.docs[querySnapshot.docs.length - 1].id ? querySnapshot.docs[querySnapshot.docs.length - 1] : {});
+            setFirstVisible(querySnapshot.docs[0]);
+        })
+    }
+
+    // console.log("totalDocuments", totalDocuments);
+
+    // 1 2 
+    // 2
+    // 3 4 
+    // 4 
+    // 5 6
+    // 5
+
+    // 1 2 3 4 
+    // 1 4
+    // 5 6 7
+    // 5 
+
+    const sortData = (type, field) => {
+        setSortType(type);
+        setSortValue(field);
+
+    }
+
+
+        useEffect(() =>{
+
+
+            async function callme(rows){
+                await setRowData(rows);
+            }
+
+            const rows = [];
+
+        var query =  db.collection("employees");
+        if(searchField && searchValue){
+            query = query.where(searchField, '==', `${searchValue[searchField]}`)
+        }
+        query = query.orderBy(sortValue, sortType).limit(rowLimit)
+
+        query.get().then((querySnapshot) => {
+            querySnapshot.docs.map((item, index) => {
+                rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+            })
+            callme(rows);
+
+            console.log("count------------>", count);
+
+            setFirstVisible({});
+            console.log("Data------>", querySnapshot.docs[0].data())
+            console.log("Data------>", querySnapshot.docs[1].data())
+            console.log("Sorting last record-------->", lastRowId);
+            console.log("Soritng(id) --------->", querySnapshot.docs[querySnapshot.docs.length - 1].id)
+            console.log("Soritng(name) --------->", querySnapshot.docs[querySnapshot.docs.length - 1].data().emp_name)
+            // setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+            setLastVisible(lastRowId != querySnapshot.docs[querySnapshot.docs.length - 1].id ? querySnapshot.docs[querySnapshot.docs.length - 1] : {});
+
+        })
+        }, [sortValue,sortType])
+
+
+
+        // db.collection('employees').where(searchField, '==', `${searchValue[searchField]}`).orderBy(field, type).limit(rowLimit).get().then((querySnapshot) => {
+        //     querySnapshot.docs.map((item, index) => {
+        //         rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+        //     })
+        //     setFirstVisible({});
+        //     setSortType(type);
+        //     setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        //     setSortValue(field);
+        //     setRowData(rows);
+        // })
+    
+
+    const searchChangeHandler = (event, field) => {
+        setSearchValue({
+            [event.target.name]: event.target.value
+        });
+        setSearchField(field);
+    }
+
+    useEffect(() => {
+        if (Object.values(searchValue).includes('')) {
+            getRowData();
+        }
+    }, [searchValue])
+
+
+
+
+    const searchHandler = (event, from) => {
+
+        if (event.key === "Enter" || from === 'iconClick') {
+
+            const rows = [];
+
+
+            async function callSearch(rows){
+                await setRowData(rows);
+            }
+
+            if (!Object.values(searchValue).includes('')) {
+                db.collection("employees").where(searchField, '==', `${searchValue[searchField]}`).orderBy(sortValue, sortType).limit(rowLimit).get().then(querySnapshot => {
+                    querySnapshot.docs.map((item, index) => {
+                        console.log("SEARCHHHHHHHHHHHHHHHHHHHHHHHH%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%$$$$$$$$$$$$$$",item.data());
+                        rows.push({ ...item.data(), id: item.id, 'sno': index + 1 });
+                    })
+                    callSearch(rows);
+                    // setRowData(rows);
+                    setFirstVisible({});
+                    setLastVisible(lastRowId !== querySnapshot.docs[querySnapshot.docs.length - 1].id ? querySnapshot.docs[querySnapshot.docs.length - 1] : {});
+
+                    // setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+                    
+                })
+
+            }
+            else {
+                getRowData();
+            }
+        }
+
+
+    }
+
+
+    // console.log("RowData", rowData);
+    // console.log("search value", searchField, searchValue);
+    console.log(sortValue, sortType);
+
+
+
+    return (
+        <div style={{ width: '90%', margin: '0 auto' }}>
+            <h2 style={{textAlign: 'center'}}> EmployeeList</h2>
+
+            <>
+
+                <TableContainer component={Paper} >
+                    <Table className={classes.table} aria-label="simple table">
+                        <TableHead>
+                            <TableRow>
+                                {
+                                    tableData.map((item, index) => (
+                                        <TableCell key={index}>
+                                            <div>
+                                                <strong>{item.headerName}</strong>
+                                                {item.headerName !== 'S.No' && item.headerName !== 'Actions' ?
+                                                    <div>
+                                                        <ArrowUpwardIcon style={{ cursor: 'pointer', fontSize: 20, padding: ' 0px 10px', color: '#22d1dd' }} onClick={() => sortData('asc', item.field)} />
+                                                        <ArrowDownwardIcon style={{ cursor: 'pointer', fontSize: 20, color: '#22d1dd' }} onClick={() => sortData('desc', item.field)} />
+                                                    </div>
+                                                    :
+                                                    null
+                                                }
+
+
+                                            </div>
+
+                                        </TableCell>
+                                    ))
+                                }
+                            </TableRow>
+                            <TableRow>
+                                {
+                                    tableData.map((item, index) => (
+                                        <TableCell>{
+                                            item.headerName !== 'S.No' && item.headerName !== 'Actions' ?
+                                                <div>
+
+                                                    <Input name={item.field} value={searchValue[item.field]} onKeyDown={(event) => searchHandler(event, '')} onChange={(event) => searchChangeHandler(event, item.field)} className={classes.inputField}
+                                                        endAdornment={
+                                                            <InputAdornment position="end">
+                                                                <IconButton
+                                                                    type='submit' onClick={(event) => searchHandler(event, 'iconClick')}
+                                                                >
+                                                                    <SearchIcon style={{ cursor: 'pointer', color: '#22d1dd' }} />
+                                                                </IconButton>
+                                                            </InputAdornment>
+                                                        } />
+                                                </div>
+                                                :
+                                                null
+                                        }
+                                        </TableCell>
+                                    ))
+                                }
+
+                            </TableRow>
+                        </TableHead>
+
+                        {
+                            rowData && rowData.length > 0 ?
+
+                                <TableBody>
+
+
+                                    {
+                                        rowData.map((data, index) => (
+                                            <TableRow key={index}>
+                                                {
+                                                    tableData.map((item, keyIndex) => (
+                                                        <TableCell >{item.headerName === 'Actions' ?
+                                                            <div className={classes.actionIcons}>
+                                                                <EditIcon style={{ cursor: 'pointer', marginRight: '10px', color: '#22d1dd' }} onClick={() => editHandler(data)} />
+                                                                <DeleteIcon style={{ cursor: 'pointer', marginLeft: '10px', color: '#22d1dd' }} onClick={() => deleteHandler(data)} />
+                                                            </div> :
+                                                            data[item.field]}
+                                                        </TableCell>
+                                                    ))
+                                                }
+
+                                            </TableRow>
+                                        ))
+                                    }
+
+                                </TableBody>
+                                :
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell colSpan={6}>
+                                            <h2 style={{ textAlign: 'center', width: '100%' }}>No rows to show</h2>
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                        }
+                    </Table>
+                    {
+                        rowData && rowData.length > 0 ?
+
+                            <div className={classes.paginationArrows}>
+                                <IconButton disabled={firstVisible && Object.entries(firstVisible).length <= 0} onClick={previousDocumentsHandler}>
+                                    <ChevronLeftIcon />
+                                </IconButton>
+                                <IconButton disabled={lastVisible && Object.entries(lastVisible).length <= 0} onClick={nextDocumentsHandler}>
+                                    <ChevronRightIcon />
+                                </IconButton>
+                            </div>
+                            :
+                            null
+                    }
+                </TableContainer>
+
+
+
+            </>
+        
+        </div>
+    )
+}
+
+export default EmployeeList
+
+
+
+
+
+// Tasks
+// ----------------
+// filtering
+// sorting
+// pagination
+// Deleting
+// Put
+
+// Next discussion
+// Authentication --- Google sign-in, Fb, Github
+// Authorization --- Role based 
